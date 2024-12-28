@@ -148,7 +148,7 @@ func guessLetter(c *gin.Context, currentWord *string) {
                 players[i].IncorrectGuesses++
                 c.IndentedJSON(http.StatusBadRequest, 
 									gin.H{
-										"player": p, 
+										"player": players[i], 
 										"msg": "Invalid guess",
 										"isCorrect": false,
 									})
@@ -156,14 +156,15 @@ func guessLetter(c *gin.Context, currentWord *string) {
             }
 
             if strings.Contains(*currentWord, guess) {
-                players[i].CorrectGuesses++
+                players[i].CorrectGuesses += strings.Count(*currentWord, guess)
 								guessed := updateGuessList(guess)
                 c.IndentedJSON(http.StatusOK, 
 									gin.H{
-										"player": p, 
+										"player": players[i], 
 										"msg": "Correct guess!", 
 										"guessedLetters": guessed,
 										"isCorrect": true,
+										"isWinner": players[i].CorrectGuesses >= len(*currentWord),
 									})
                 return
             }
@@ -172,7 +173,7 @@ func guessLetter(c *gin.Context, currentWord *string) {
 						guessed := updateGuessList(guess)
             c.IndentedJSON(http.StatusOK, 
 							gin.H{
-								"player": p, 
+								"player": players[i], 
 								"msg": "Incorrect guess!", 
 								"guessedLetters": guessed,
 							  "isCorrect": false,
