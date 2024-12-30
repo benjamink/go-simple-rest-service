@@ -88,9 +88,15 @@ func main() {
 func selectWord(currentWord *string) {
 	rand.Seed(uint64(time.Now().UnixNano()))
 	new := words[rand.Intn(len(words))]
+	/*
 	for new != *currentWord {
 		*currentWord = new
 	}
+	*/
+	for new == *currentWord {
+		new = words[rand.Intn(len(words))]
+	}
+	*currentWord = new
 }
 
 func resetGame(c *gin.Context, cur *string) {
@@ -138,11 +144,29 @@ func updateGuessList(g string) []string {
     return guessedLetters
 }
 
-func checkIfWinner(g string) bool {
-	g_int, err := strconv.Atoi(g); if err != nil {
-		return false
-  }
-	return g_int >= len(*currentWord)
+func checkIfWinner(g int, currentWord *string) bool {
+	return g >= len(*currentWord)
+}
+
+func doTurn(c *gin.Context, player *player, guess string, currentWord *string) {
+	if strings.Contains(*currentWord, guess) {
+		if !slices.Contains(guessedLetters, guess) {
+			player.CorrectGuesses += strings.Count(*currentWord, guess)
+		}
+		guessed := updateGuessList(guess)
+		if checkIfWinner(player.CorrectGuesses, currentWord) {
+				respondWithJSON(c, http.StatusOK, player, "You won!", true, guessed)
+				resetGame(c, currentWord)
+		} else {
+				respondWithJSON(c, http.StatusOK, player, "Correct guess!", true, guessed)
+		}
+		return
+	}
+
+	player.IncorrectGuesses++
+	guessed := updateGuessList(guess)
+	respondWithJSON(c, http.StatusOK, player, "Incorrect guess!", false, guessed)
+	return
 }
 
 func guessLetter(c *gin.Context, currentWord *string) {
@@ -151,47 +175,57 @@ func guessLetter(c *gin.Context, currentWord *string) {
 
     for i, p := range players {
         if p.ID == id {
+            ptr := &players[i]
 
-						ptr := &players[i]
+						doTurn(c, ptr, guess, currentWord)
+				}
+		}
+}
+
+/*
+func guessLetter(c *gin.Context, currentWord *string) {
+    id, _ := strconv.Atoi(c.Param("id"))
+    guess := c.Param("guess")
+
+    for i, p := range players {
+        if p.ID == id {
+            ptr := &players[i]
 
             if len(guess) != 1 {
-								ptr.IncorrectGuesses++
-                c.IndentedJSON(http.StatusBadRequest, 
-									gin.H{
-										"player": ptr, 
-										"msg": "Invalid guess",
-										"isCorrect": false,
-									})
+                ptr.IncorrectGuesses++
+                respondWithJSON(c, http.StatusBadRequest, ptr, "Invalid guess", false, false)
                 return
             }
 
             if strings.Contains(*currentWord, guess) {
-								if ! slices.Contains(guessedLetters, guess) {
-										ptr.CorrectGuesses += strings.Count(*currentWord, guess)
-								}
-								guessed := updateGuessList(guess)
-                c.IndentedJSON(http.StatusOK, 
-									gin.H{
-										"player": ptr, 
-										"msg": "Correct guess!", 
-										"guessedLetters": guessed,
-										"isCorrect": true,
-										"isWinner": ptr.CorrectGuesses >= len(*currentWord),
-									})
+                if !slices.Contains(guessedLetters, guess) {
+                    ptr.CorrectGuesses += strings.Count(*currentWord, guess)
+                }
+                guessed := updateGuessList(guess)
+                respondWithJSON(c, http.StatusOK, ptr, "Correct guess!", true, ptr.CorrectGuesses >= len(*currentWord), guessed)
                 return
             }
 
             ptr.IncorrectGuesses++
-						guessed := updateGuessList(guess)
-            c.IndentedJSON(http.StatusOK, 
-							gin.H{
-								"player": ptr, 
-								"msg": "Incorrect guess!", 
-								"guessedLetters": guessed,
-							  "isCorrect": false,
-              })
+            guessed := updateGuessList(guess)
+            respondWithJSON(c, http.StatusOK, ptr, "Incorrect guess!", false, false, guessed)
             return
         }
     }
     c.IndentedJSON(http.StatusNotAcceptable, gin.H{"msg": "Player not found"})
+}
+*/
+
+func respondWithJSON(c *gin.Context, status int, player *player, msg string, isCorrect bool, guessedLetters ...[]string) {
+    response := gin.H{
+        "player": player,
+        "msg": msg,
+        "isCorrect": isCorrect,
+				"correctGuesses": player.CorrectGuesses,
+				"incorrectGuesses": player.IncorrectGuesses,
+    }
+    if len(guessedLetters) > 0 {
+        response["guessedLetters"] = guessedLetters[0]
+    }
+    c.IndentedJSON(status, response)
 }
