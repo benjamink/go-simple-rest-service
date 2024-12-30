@@ -31,7 +31,7 @@ var players = []player{
 }
 
 var guessedLetters []string
-var currentWord *string
+var currentWord string
 
 // words slice to seed record words data.
 var words = []string{
@@ -43,7 +43,7 @@ var words = []string{
 }
 
 func main() {
-	currentWord := ""
+	rand.Seed(uint64(time.Now().UnixNano()))
 	selectWord(&currentWord)
 	router := gin.New()
 
@@ -86,13 +86,7 @@ func main() {
 }
 
 func selectWord(currentWord *string) {
-	rand.Seed(uint64(time.Now().UnixNano()))
 	new := words[rand.Intn(len(words))]
-	/*
-	for new != *currentWord {
-		*currentWord = new
-	}
-	*/
 	for new == *currentWord {
 		new = words[rand.Intn(len(words))]
 	}
@@ -181,40 +175,6 @@ func guessLetter(c *gin.Context, currentWord *string) {
 				}
 		}
 }
-
-/*
-func guessLetter(c *gin.Context, currentWord *string) {
-    id, _ := strconv.Atoi(c.Param("id"))
-    guess := c.Param("guess")
-
-    for i, p := range players {
-        if p.ID == id {
-            ptr := &players[i]
-
-            if len(guess) != 1 {
-                ptr.IncorrectGuesses++
-                respondWithJSON(c, http.StatusBadRequest, ptr, "Invalid guess", false, false)
-                return
-            }
-
-            if strings.Contains(*currentWord, guess) {
-                if !slices.Contains(guessedLetters, guess) {
-                    ptr.CorrectGuesses += strings.Count(*currentWord, guess)
-                }
-                guessed := updateGuessList(guess)
-                respondWithJSON(c, http.StatusOK, ptr, "Correct guess!", true, ptr.CorrectGuesses >= len(*currentWord), guessed)
-                return
-            }
-
-            ptr.IncorrectGuesses++
-            guessed := updateGuessList(guess)
-            respondWithJSON(c, http.StatusOK, ptr, "Incorrect guess!", false, false, guessed)
-            return
-        }
-    }
-    c.IndentedJSON(http.StatusNotAcceptable, gin.H{"msg": "Player not found"})
-}
-*/
 
 func respondWithJSON(c *gin.Context, status int, player *player, msg string, isCorrect bool, guessedLetters ...[]string) {
     response := gin.H{
