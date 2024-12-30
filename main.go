@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -137,18 +138,27 @@ func updateGuessList(g string) []string {
     return guessedLetters
 }
 
+func checkIfWinner(g string) bool {
+	g_int, err := strconv.Atoi(g); if err != nil {
+		return false
+  }
+	return g_int >= len(*currentWord)
+}
+
 func guessLetter(c *gin.Context, currentWord *string) {
     id, _ := strconv.Atoi(c.Param("id"))
     guess := c.Param("guess")
 
-
     for i, p := range players {
         if p.ID == id {
+
+						ptr := &players[i]
+
             if len(guess) != 1 {
-                players[i].IncorrectGuesses++
+								ptr.IncorrectGuesses++
                 c.IndentedJSON(http.StatusBadRequest, 
 									gin.H{
-										"player": players[i], 
+										"player": ptr, 
 										"msg": "Invalid guess",
 										"isCorrect": false,
 									})
@@ -156,24 +166,26 @@ func guessLetter(c *gin.Context, currentWord *string) {
             }
 
             if strings.Contains(*currentWord, guess) {
-                players[i].CorrectGuesses += strings.Count(*currentWord, guess)
+								if ! slices.Contains(guessedLetters, guess) {
+										ptr.CorrectGuesses += strings.Count(*currentWord, guess)
+								}
 								guessed := updateGuessList(guess)
                 c.IndentedJSON(http.StatusOK, 
 									gin.H{
-										"player": players[i], 
+										"player": ptr, 
 										"msg": "Correct guess!", 
 										"guessedLetters": guessed,
 										"isCorrect": true,
-										"isWinner": players[i].CorrectGuesses >= len(*currentWord),
+										"isWinner": ptr.CorrectGuesses >= len(*currentWord),
 									})
                 return
             }
 
-            players[i].IncorrectGuesses++
+            ptr.IncorrectGuesses++
 						guessed := updateGuessList(guess)
             c.IndentedJSON(http.StatusOK, 
 							gin.H{
-								"player": players[i], 
+								"player": ptr, 
 								"msg": "Incorrect guess!", 
 								"guessedLetters": guessed,
 							  "isCorrect": false,
